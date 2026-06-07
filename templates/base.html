@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Research Tracker{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="shell">
+  <div id="sb-bg" class="sb-bg"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <a href="{{ url_for('dashboard') }}" class="sb-brand">
+        <div class="sb-icon">📄</div>
+        <div><div class="sb-name">Research Tracker</div><div class="sb-sub">Academic Paper Manager</div></div>
+      </a>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="nav-sec">Main</div>
+      <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint=='dashboard' %}active{% endif %}">
+        <span class="nav-icon">⬡</span>Dashboard
+      </a>
+      <a href="{{ url_for('papers_list') }}" class="nav-link {% if request.endpoint in ['papers_list','paper_detail'] %}active{% endif %}">
+        <span class="nav-icon">📋</span>All Papers
+        <span class="nav-badge" id="nav-total">—</span>
+      </a>
+      <a href="{{ url_for('journals_list') }}" class="nav-link {% if request.endpoint=='journals_list' %}active{% endif %}">
+        <span class="nav-icon">📰</span>Journals
+      </a>
+      <a href="{{ url_for('timeline') }}" class="nav-link {% if request.endpoint=='timeline' %}active{% endif %}">
+        <span class="nav-icon">📅</span>Timeline
+      </a>
+
+      <div class="nav-sec" style="margin-top:8px">By Stage</div>
+      {% for s in stages %}
+        <a href="{{ url_for('papers_list', stage=s.id) }}" class="nav-link">
+          <span class="nav-icon">{{ s.icon }}</span>{{ s.label }}
+        </a>
+      {% endfor %}
+
+      <div class="nav-sec" style="margin-top:8px">Account</div>
+      <a href="{{ url_for('logout') }}" class="nav-link">
+        <span class="nav-icon">↩</span>Sign Out
+      </a>
+    </nav>
+
+    <div class="sb-foot">
+      {% if current_user %}
+      <div class="user-row">
+        <div class="avatar">
+          {% if current_user.picture %}<img src="{{ current_user.picture }}" alt="">
+          {% else %}{{ current_user.initials }}{% endif %}
+        </div>
+        <div>
+          <div class="uname">{{ current_user.name }}</div>
+          <div class="uemail">{{ current_user.email }}</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <button class="sb-toggle" id="sb-toggle">☰</button>
+      <h1 class="tb-title">{% block tb_title %}{% endblock %} <span>{% block tb_sub %}{% endblock %}</span></h1>
+      <div class="tb-right">{% block tb_actions %}{% endblock %}</div>
+    </header>
+
+    <!-- Flashes -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">
+              {% if cat=='success' %}✓{% elif cat=='error' %}✗{% else %}ℹ{% endif %} {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<div id="toasts"></div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+
+<!-- Nav badge -->
+<script>
+(async()=>{
+  try{
+    const r=await fetch('/papers');const t=await r.text();
+    const m=t.match(/(\d+)\s+paper/);
+    const el=document.getElementById('nav-total');
+    if(m&&el)el.textContent=m[1];
+  }catch(e){}
+})();
+</script>
+</body>
+</html>

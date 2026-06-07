@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Research Tracker{% endblock %}
+{% block tb_title %}Dashboard{% endblock %}
+{% block tb_sub %}/ Overview{% endblock %}
+{% block tb_actions %}
+  <button class="btn btn-primary" onclick="openModal('add-modal')">+ New Paper</button>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  {# ── Stats ──────────────────────────────────────────────────── #}
+  <div class="stat-grid">
+    <div class="stat-card indigo">
+      <div class="stat-lbl">Total Papers</div>
+      <div class="stat-val">{{ stats.total or 0 }}</div>
+      <div class="stat-meta">All tracked papers</div>
+      <div class="stat-ico">📄</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-lbl">In Progress</div>
+      <div class="stat-val">{{ stats.in_progress or 0 }}</div>
+      <div class="stat-meta">Idea → Writing</div>
+      <div class="stat-ico">✍️</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-lbl">Under Review</div>
+      <div class="stat-val">{{ stats.in_review or 0 }}</div>
+      <div class="stat-meta">Review + Revision</div>
+      <div class="stat-ico">👁</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-lbl">Submitted</div>
+      <div class="stat-val">{{ stats.submitted or 0 }}</div>
+      <div class="stat-meta">Awaiting decision</div>
+      <div class="stat-ico">📤</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-lbl">Accepted</div>
+      <div class="stat-val">{{ stats.accepted or 0 }}</div>
+      <div class="stat-meta">In production</div>
+      <div class="stat-ico">✅</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-lbl">Published</div>
+      <div class="stat-val">{{ stats.published or 0 }}</div>
+      <div class="stat-meta">Live &amp; indexed</div>
+      <div class="stat-ico">🏆</div>
+    </div>
+  </div>
+
+  {# ── Pipeline Board ─────────────────────────────────────────── #}
+  <div class="card mb4" style="margin-bottom:18px">
+    <div class="card-hdr">
+      <h2 class="card-title"><span class="card-ico">⬡</span>Publication Pipeline</h2>
+      <a href="{{ url_for('papers_list') }}" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    <div style="overflow-x:auto;padding:0 20px 20px">
+      <div class="pip-board">
+        {% for s in stages %}
+          {% set cols = pipeline.get(s.id, []) %}
+          <div class="pip-col">
+            <div class="pip-col-hdr">
+              <span class="sc sc-{{ s.id }}">{{ s.icon }} {{ s.label }}</span>
+              <span class="pip-cnt">{{ cols|length }}</span>
+            </div>
+            <div class="pip-cards">
+              {% if not cols %}
+                <div class="pip-empty">Empty</div>
+              {% else %}
+                {% for p in cols[:4] %}
+                  <a href="{{ url_for('paper_detail', paper_id=p.id) }}" style="text-decoration:none;display:block">
+                    <div class="pip-card">
+                      <div class="pip-card-title">{{ p.title[:62] }}{% if p.title|length>62 %}…{% endif %}</div>
+                      <div class="flex items-center gap2 mt2">
+                        <span class="pri pri-{{ p.priority }}">{{ p.priority }}</span>
+                        <span class="tx-xs tx-mono tx-faint">{{ p.progress }}%</span>
+                      </div>
+                      <div class="prog mt1"><div class="fill" style="width:{{ p.progress }}%"></div></div>
+                    </div>
+                  </a>
+                {% endfor %}
+                {% if cols|length > 4 %}
+                  <a href="{{ url_for('papers_list', stage=s.id) }}" style="display:block;text-align:center;font-size:10px;font-weight:700;color:var(--indigo);padding:4px;font-family:var(--mono)">+{{ cols|length-4 }} more</a>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Bottom grid ────────────────────────────────────────────── #}
+  <div style="display:grid;grid-template-columns:1fr 310px;gap:18px">
+    <div>
+
+      {# Recent Papers #}
+      <div class="card mb4" style="margin-bottom:18px">
+        <div class="card-hdr">
+          <h2 class="card-title"><span class="card-ico">🕐</span>Recent Papers</h2>
+          <a href="{{ url_for('papers_list') }}" class="btn btn-ghost btn-sm">All →</a>
+        </div>
+        <div class="overflow-x">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Paper</th><th>Stage</th><th>Priority</th>
+                <th style="min-width:110px">Progress</th><th>Target</th><th>Deadline</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if not recent %}
+                <tr><td colspan="6">
+                  <div class="empty">
+                    <div class="empty-ico">📝</div>
+                    <h3>No papers yet</h3>
+                    <p>Add your first paper to start tracking your publication pipeline.</p>
+                    <button class="btn btn-primary" onclick="openModal('add-modal')">+ Add Paper</button>
+                  </div>
+                </td></tr>
+              {% else %}
+                {% for p in recent %}
+                <tr onclick="location.href='{{ url_for('paper_detail', paper_id=p.id) }}'">
+                  <td>
+                    <div class="t-title">{{ p.title }}</div>
+                    <div class="t-sub">{{ p.journal or 'No journal set' }}</div>
+                  </td>
+                  <td><span class="sc sc-{{ p.stage }}">{{ stage_icons[p.stage] }} {{ stage_labels[p.stage] }}</span></td>
+                  <td><span class="pri pri-{{ p.priority }}">{{ p.priority }}</span></td>
+                  <td>
+                    <div class="flex items-center gap2">
+                      <span class="tx-mono tx-xs tx-muted" style="min-width:28px">{{ p.progress }}%</span>
+                      <div style="flex:1;min-width:70px"><div class="prog"><div class="fill" style="width:{{ p.progress }}%"></div></div></div>
+                    </div>
+                  </td>
+                  <td class="tx-sm tx-muted">{{ p.target_date|fmt }}</td>
+                  <td>
+                    {% if p.target_date %}
+                      {% set d = p.target_date|days_until %}
+                      {% if d is not none %}
+                        {% if d < 0 %}<span class="tx-red tx-xs tx-mono bold">{{ d|abs }}d overdue</span>
+                        {% elif d == 0 %}<span class="tx-amber tx-xs tx-mono bold">Today!</span>
+                        {% elif d <= 7 %}<span class="tx-amber tx-xs tx-mono">{{ d }}d left</span>
+                        {% else %}<span class="tx-faint tx-xs tx-mono">{{ d }}d left</span>
+                        {% endif %}
+                      {% endif %}
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {# Stage chart #}
+      <div class="card">
+        <div class="card-hdr"><h2 class="card-title"><span class="card-ico">📊</span>Stage Distribution</h2></div>
+        <div class="card-body">
+          {% set mx = namespace(v=1) %}
+          {% for s in stages %}{% if stats.by_stage.get(s.id,0) > mx.v %}{% set mx.v = stats.by_stage[s.id] %}{% endif %}{% endfor %}
+          {% for s in stages %}
+            {% set cnt = stats.by_stage.get(s.id,0) %}
+            <div class="chart-row">
+              <div class="chart-lbl">{{ s.icon }} {{ s.label }}</div>
+              <div class="chart-track">
+                <div class="chart-fill" style="width:{{ (cnt/mx.v*100)|int }}%;background:{{ stage_colors[s.id] }};border-radius:99px"></div>
+              </div>
+              <div class="chart-val">{{ cnt }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:18px">
+      {# Deadlines #}
+      <div class="card">
+        <div class="card-hdr"><h2 class="card-title"><span class="card-ico">⏰</span>Deadlines</h2></div>
+        {% if not deadlines %}
+          <div style="padding:16px 18px;color:var(--text3);font-size:12px;font-family:var(--mono)">No deadlines set.</div>
+        {% else %}
+          {% for p in deadlines %}
+            {% set d = p.target_date|days_until %}
+            <a href="{{ url_for('paper_detail', paper_id=p.id) }}" style="text-decoration:none">
+              <div class="dl-item">
+                <div class="dl-title">{{ p.title[:55] }}{% if p.title|length>55 %}…{% endif %}</div>
+                <div class="flex items-center gap2 mt1">
+                  <span class="sc sc-{{ p.stage }}">{{ stage_icons[p.stage] }} {{ stage_labels[p.stage] }}</span>
+                  {% if d is not none %}
+                    {% if d < 0 %}<span class="tx-red tx-xs tx-mono bold">{{ d|abs }}d overdue</span>
+                    {% elif d == 0 %}<span class="tx-amber tx-xs tx-mono bold">Today!</span>
+                    {% elif d <= 7 %}<span class="tx-amber tx-xs tx-mono">{{ d }}d</span>
+                    {% else %}<span class="tx-faint tx-xs tx-mono">{{ d }}d</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      {# Activity #}
+      <div class="card">
+        <div class="card-hdr"><h2 class="card-title"><span class="card-ico">◎</span>Activity</h2></div>
+        <div style="padding:16px 18px">
+          {% if not activity %}
+            <div style="color:var(--text3);font-size:12px">No activity yet.</div>
+          {% else %}
+            {% for a in activity %}
+              <div class="act {% if loop.first %}new{% endif %}">
+                <div class="act-dot"></div>
+                <div class="act-d">{{ a.timestamp.split(' ')[0] }} · {{ a.action.replace('_',' ') }}</div>
+                <div class="act-t">{{ a.detail }}</div>
+              </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% include "_modal_add_paper.html" %}
+{% endblock %}

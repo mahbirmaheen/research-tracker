@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Journals — Research Tracker{% endblock %}
+{% block tb_title %}Journals{% endblock %}
+{% block tb_sub %}/ Target List{% endblock %}
+{% block tb_actions %}
+  <form class="search-wrap" method="get" action="{{ url_for('journals_list') }}">
+    <span class="search-ico">⌕</span>
+    <input name="q" type="text" placeholder="Search journals…" value="{{ search }}" autocomplete="off">
+  </form>
+  <button class="btn btn-primary" onclick="openModal('jadd-modal')">+ Add Journal</button>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div style="background:linear-gradient(135deg,var(--indigo-light),#f5f3ff);border:1px solid var(--indigo-mid);border-radius:var(--r-lg);padding:14px 18px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-start">
+    <span style="font-size:20px;flex-shrink:0">💡</span>
+    <div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Target Journal List</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6">Pre-populated with 14 top journals for materials science and battery recycling. Add journals, track impact factors, APC costs and build your submission strategy. All data saved to your Google Sheet.</div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:12px;font-family:var(--mono);font-size:11px;color:var(--text3);font-weight:500">
+    {{ journals|length }} journal{{ 's' if journals|length != 1 }}{% if search %} matching "<strong style="color:var(--text2)">{{ search }}</strong>"{% endif %}
+  </div>
+
+  <div class="card">
+    <div class="overflow-x">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th style="min-width:200px">Journal Name</th>
+            <th>Impact Factor</th>
+            <th>Publisher</th>
+            <th>APC (USD)</th>
+            <th>Open Access</th>
+            <th style="min-width:160px">Scope</th>
+            <th style="min-width:200px">Strategy Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if not journals %}
+            <tr><td colspan="7"><div class="empty"><div class="empty-ico">📰</div><h3>No journals yet</h3><p>Add journals you plan to target.</p></div></td></tr>
+          {% else %}
+            {% for j in journals %}
+            <tr style="cursor:default">
+              <td><span style="font-weight:700;color:var(--text);font-size:13px">{{ j.name or '—' }}</span></td>
+              <td>
+                {% set ifv = j.if_score|float(0) %}
+                <span class="tx-mono tx-sm bold {% if ifv>=10 %}tx-indigo{% elif ifv>=5 %}tx-blue{% else %}tx-muted{% endif %}">{{ j.if_score or '—' }}</span>
+              </td>
+              <td class="tx-sm tx-muted">{{ j.publisher or '—' }}</td>
+              <td class="tx-sm tx-muted">{% if j.apc %}${{ j.apc }}{% else %}—{% endif %}</td>
+              <td>
+                {% if j.oa=='Yes' %}<span style="color:var(--green);font-size:11px;font-weight:700;font-family:var(--mono)">✓ Full OA</span>
+                {% elif j.oa=='Optional' %}<span style="color:var(--text3);font-size:11px;font-family:var(--mono)">Hybrid</span>
+                {% else %}<span class="tx-faint tx-xs">—</span>{% endif %}
+              </td>
+              <td class="tx-sm tx-muted" style="max-width:180px">{{ j.scope or '—' }}</td>
+              <td style="max-width:220px;font-size:12px;color:var(--text2)">{{ j.notes or '—' }}</td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# Add Journal Modal #}
+<div class="modal-ov" id="jadd-modal">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-hdr">
+      <h2 class="modal-title">Add Journal</h2>
+      <button class="modal-x" onclick="closeModal('jadd-modal')">×</button>
+    </div>
+    <form action="{{ url_for('journal_add') }}" method="POST">
+      <div class="modal-body">
+        <div class="fg"><label class="fl">Journal Name <span class="req">*</span></label><input class="fi" name="name" type="text" placeholder="e.g. Chemical Engineering Journal" required autofocus></div>
+        <div class="fg2">
+          <div class="fg"><label class="fl">Impact Factor</label><input class="fi" name="if_score" type="text" placeholder="e.g. 15.1"></div>
+          <div class="fg"><label class="fl">Publisher</label><input class="fi" name="publisher" type="text" placeholder="e.g. Elsevier"></div>
+        </div>
+        <div class="fg2">
+          <div class="fg"><label class="fl">APC (USD)</label><input class="fi" name="apc" type="text" placeholder="e.g. 3450"></div>
+          <div class="fg"><label class="fl">Open Access</label>
+            <select class="fs" name="oa"><option value="Optional">Optional / Hybrid</option><option value="Yes">Yes — Full OA</option><option value="No">No — Subscription</option></select>
+          </div>
+        </div>
+        <div class="fg"><label class="fl">Scope</label><input class="fi" name="scope" type="text" placeholder="Brief scope description…"></div>
+        <div class="fg" style="margin-bottom:0"><label class="fl">Strategy Notes</label><textarea class="ft" name="notes" placeholder="Why targeting this journal, submission tips…" style="min-height:70px"></textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('jadd-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Journal</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

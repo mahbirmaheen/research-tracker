@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}All Papers — Research Tracker{% endblock %}
+{% block tb_title %}All Papers{% endblock %}
+{% block tb_sub %}/ {{ total }} paper{{ 's' if total != 1 }}{% endblock %}
+{% block tb_actions %}
+  <form class="search-wrap" method="get" action="{{ url_for('papers_list') }}">
+    <span class="search-ico">⌕</span>
+    <input name="q" type="text" placeholder="Search papers…" value="{{ search }}" autocomplete="off">
+    <input type="hidden" name="stage" value="{{ stage_filter }}">
+    <input type="hidden" name="priority" value="{{ priority_filter }}">
+  </form>
+  <button class="btn btn-primary" onclick="openModal('add-modal')">+ New Paper</button>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div class="filter-bar">
+    <span class="tx-xs tx-mono tx-faint" style="margin-right:2px">STAGE:</span>
+    <a href="{{ url_for('papers_list', stage='all', priority=priority_filter, q=search) }}" class="fchip {% if stage_filter=='all' %}active{% endif %}">All <span class="badge-pill" style="margin-left:4px">{{ stage_counts.all }}</span></a>
+    {% for s in stages %}
+      <a href="{{ url_for('papers_list', stage=s.id, priority=priority_filter, q=search) }}" class="fchip {% if stage_filter==s.id %}active{% endif %}">{{ s.icon }} {{ s.label }} {% if stage_counts.get(s.id,0) %}<span class="badge-pill" style="margin-left:3px">{{ stage_counts[s.id] }}</span>{% endif %}</a>
+    {% endfor %}
+  </div>
+
+  <div class="filter-bar" style="margin-top:-4px">
+    <span class="tx-xs tx-mono tx-faint" style="margin-right:2px">PRIORITY:</span>
+    <a href="{{ url_for('papers_list', stage=stage_filter, priority='all', q=search) }}" class="fchip {% if priority_filter=='all' %}active{% endif %}">All</a>
+    {% for pid,plbl in priorities %}
+      <a href="{{ url_for('papers_list', stage=stage_filter, priority=pid, q=search) }}" class="fchip {% if priority_filter==pid %}active{% endif %}">{{ plbl }}</a>
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <div class="overflow-x">
+      <table class="tbl">
+        <thead>
+          <tr>
+            {% for field,lbl in [('title','Paper'),('stage','Stage'),('priority','Priority'),('progress','Progress'),('journal_type','Type'),('target_date','Target Date')] %}
+              <th class="{% if sort_by==field %}sorted{% endif %}" {% if field=='progress' %}style="min-width:130px"{% endif %}>
+                <a href="{{ url_for('papers_list', stage=stage_filter, priority=priority_filter, q=search, sort=field, dir='asc' if sort_by==field and sort_dir=='desc' else 'desc') }}">
+                  {{ lbl }} {% if sort_by==field %}{{ '↑' if sort_dir=='asc' else '↓' }}{% else %}⇅{% endif %}
+                </a>
+              </th>
+            {% endfor %}
+            <th style="width:80px;cursor:default">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if not papers %}
+            <tr><td colspan="7">
+              <div class="empty">
+                <div class="empty-ico">📄</div><h3>No papers found</h3>
+                <p>Adjust your filters or add a new paper.</p>
+              </div>
+            </td></tr>
+          {% else %}
+            {% for p in papers %}
+            <tr onclick="location.href='{{ url_for('paper_detail', paper_id=p.id) }}'">
+              <td><div class="t-title">{{ p.title }}</div><div class="t-sub">{{ p.journal or '—' }}</div></td>
+              <td><span class="sc sc-{{ p.stage }}">{{ stage_icons[p.stage] }} {{ stage_labels[p.stage] }}</span></td>
+              <td><span class="pri pri-{{ p.priority }}">{{ p.priority }}</span></td>
+              <td>
+                <div class="flex items-center gap2">
+                  <span class="tx-mono tx-xs tx-muted" style="min-width:26px">{{ p.progress }}%</span>
+                  <div style="flex:1;min-width:70px"><div class="prog"><div class="fill" style="width:{{ p.progress }}%"></div></div></div>
+                </div>
+              </td>
+              <td class="tx-sm tx-muted">{{ p.journal_type or '—' }}</td>
+              <td>
+                <div class="tx-sm">{{ p.target_date|fmt }}</div>
+                {% if p.target_date %}{% set d=p.target_date|days_until %}{% if d is not none %}
+                  {% if d<0 %}<span class="tx-red tx-xs tx-mono bold">{{ d|abs }}d overdue</span>
+                  {% elif d==0 %}<span class="tx-amber tx-xs tx-mono bold">Today!</span>
+                  {% elif d<=7 %}<span class="tx-amber tx-xs tx-mono">In {{ d }}d</span>
+                  {% else %}<span class="tx-faint tx-xs tx-mono">In {{ d }}d</span>{% endif %}
+                {% endif %}{% endif %}
+              </td>
+              <td onclick="event.stopPropagation()">
+                <div class="flex gap2">
+                  <a href="{{ url_for('paper_detail', paper_id=p.id) }}" class="btn btn-ghost btn-xs btn-icon" title="Edit">✎</a>
+                  <form action="{{ url_for('paper_delete', paper_id=p.id) }}" method="POST" style="display:inline">
+                    <button class="btn btn-ghost btn-xs btn-icon" title="Delete" data-confirm="Delete &quot;{{ p.title[:40] }}&quot;? Cannot be undone.">✕</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% include "_modal_add_paper.html" %}
+{% endblock %}

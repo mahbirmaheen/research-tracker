@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Timeline — Research Tracker{% endblock %}
+{% block tb_title %}Timeline{% endblock %}
+{% block tb_sub %}/ Schedule View{% endblock %}
+{% block tb_actions %}
+  <a href="{{ url_for('papers_list') }}" class="btn btn-secondary btn-sm">All Papers</a>
+{% endblock %}
+
+{% block head %}
+<style>
+.tl-entry{text-decoration:none;display:flex}
+.gantt-row{text-decoration:none;display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.gantt-row:hover .gantt-bar{opacity:1!important}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('timeline',this)">📅 Timeline</button>
+    <button class="tab-btn" onclick="switchTab('gantt',this)">📊 Gantt Chart</button>
+  </div>
+
+  {# ── Timeline ─────────────────────────────────────────────────── #}
+  <div class="tab-panel active" id="panel-timeline">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px">
+      <div>
+        <h2 style="font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.3px">Publication Timeline</h2>
+        <p style="font-size:12px;color:var(--text3);margin-top:3px">Papers sorted by target date. Click any card to view or edit.</p>
+      </div>
+      <div style="display:flex;gap:14px;font-size:10px;font-weight:700;font-family:var(--mono);color:var(--text3)">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:var(--indigo);border-radius:50%;display:inline-block"></span>Active</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:var(--green);border-radius:50%;display:inline-block"></span>Done</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;background:var(--red);border-radius:50%;display:inline-block"></span>Urgent</span>
+      </div>
+    </div>
+
+    {% if not tl_papers %}
+      <div class="empty"><div class="empty-ico">📅</div><h3>No papers with dates</h3><p>Add start or target dates to your papers to see them here.</p><a href="{{ url_for('papers_list') }}" class="btn btn-primary">Go to Papers</a></div>
+    {% else %}
+      {% for p in tl_papers %}
+        {% set is_done = p.stage in ['published','accepted'] %}
+        {% set d = p.target_date|days_until if p.target_date else none %}
+        {% set is_urgent = d is not none and d < 7 and not is_done %}
+        <a href="{{ url_for('paper_detail', paper_id=p.id) }}" class="tl-entry {{ 'done' if is_done else 'active' }}">
+          <div class="tl-marker">
+            <div class="tl-dot {{ 'urgent' if is_urgent else '' }}">{{ stage_icons[p.stage] }}</div>
+            {% if not loop.last %}<div class="tl-line"></div>{% endif %}
+          </div>
+          <div class="tl-body" style="margin-left:14px">
+            <div class="tl-head">
+              <div class="tl-title">{{ p.title }}</div>
+              <div class="tl-meta">
+                <span class="sc sc-{{ p.stage }}">{{ stage_icons[p.stage] }} {{ stage_labels[p.stage] }}</span>
+                <span class="pri pri-{{ p.priority }}">{{ p.priority }}</span>
+              </div>
+            </div>
+            <div class="tl-dates">
+              {% if p.start_date %}<span>▶ Started: {{ p.start_date|fmt }}</span>{% endif %}
+              {% if p.target_date %}<span>⏱ Target: {{ p.target_date|fmt }}{% if d is not none %} — {% if d<0 %}<span style="color:var(--red)">{{ d|abs }}d overdue</span>{% elif d==0 %}<span style="color:var(--amber)">Today!</span>{% elif d<=7 %}<span style="color:var(--amber)">{{ d }}d left</span>{% else %}<span>{{ d }}d left</span>{% endif %}{% endif %}</span>{% endif %}
+              {% if p.submitted_date %}<span>📤 Submitted: {{ p.submitted_date|fmt }}</span>{% endif %}
+              {% if p.accepted_date %}<span>✅ Accepted: {{ p.accepted_date|fmt }}</span>{% endif %}
+              {% if p.published_date %}<span>🏆 Published: {{ p.published_date|fmt }}</span>{% endif %}
+            </div>
+            {% if p.journal %}<div style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--mono);margin-bottom:5px">→ {{ p.journal }}</div>{% endif %}
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;max-width:200px"><div class="prog"><div class="fill" style="width:{{ p.progress }}%"></div></div></div>
+              <span class="tx-xs tx-mono tx-muted">{{ p.progress }}%</span>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  {# ── Gantt ───────────────────────────────────────────────────── #}
+  <div class="tab-panel" id="panel-gantt">
+    <div style="margin-bottom:18px">
+      <h2 style="font-size:18px;font-weight:800;color:var(--text);letter-spacing:-.3px">Gantt Chart</h2>
+      <p style="font-size:12px;color:var(--text3);margin-top:3px">Papers need both Start Date and Target Date to appear here. Shows up to 15 papers.</p>
+    </div>
+
+    {% if not gantt_data %}
+      <div class="empty"><div class="empty-ico">📊</div><h3>No Gantt data</h3><p>Set Start Date and Target Date on your papers to generate this chart.</p><a href="{{ url_for('papers_list') }}" class="btn btn-primary">Go to Papers</a></div>
+    {% else %}
+      <div class="card">
+        <div style="padding:12px 20px 8px;border-bottom:1px solid var(--border);display:flex;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text3)">
+          <span style="width:170px;flex-shrink:0"></span>
+          <span style="flex:1">{{ gantt_meta.min_label }}</span>
+          <span>{{ gantt_meta.max_label }}</span>
+        </div>
+        <div style="padding:16px 20px;position:relative">
+          {# Today line #}
+          <div class="gantt-today" style="left:calc(170px + 10px + {{ gantt_meta.today_pct|round(1) }}% * (100% - 180px) / 100)"></div>
+          {% for g in gantt_data %}
+            <a href="{{ url_for('paper_detail', paper_id=g.id) }}" class="gantt-row">
+              <div class="gantt-lbl" title="{{ g.title }}">{{ g.title[:26] }}{% if g.title|length>26 %}…{% endif %}</div>
+              <div class="gantt-track">
+                <div class="gantt-bar" style="left:{{ g.bar_left }}%;width:{{ g.bar_width }}%;background:{{ g.bar_color }};opacity:.85" title="{{ g.title }}: {{ g.start_date|fmt }} → {{ g.target_date|fmt }}"></div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+        <div style="padding:8px 20px 12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px">
+          {% for s in stages %}
+            <span style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3)">
+              <span style="width:10px;height:10px;border-radius:2px;background:{{ stage_colors[s.id] }};display:inline-block"></span>{{ s.label }}
+            </span>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
